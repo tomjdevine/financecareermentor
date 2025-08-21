@@ -2,16 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light theme tokens */
 :root {
-  --bg: #0b1020;
+  --page-bg: #F8FAFC; /* slate-50 */
+  --body-text: #0F172A; /* slate-900 */
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
-  background: radial-gradient(1200px 600px at 20% -10%, #1a2050 0%, transparent 60%), 
-              radial-gradient(1000px 600px at 80% 110%, #113357 0%, transparent 60%),
-              var(--bg);
-  color: white;
+  background: var(--page-bg);
+  color: var(--body-text);
 }
 
 .container { @apply max-w-3xl mx-auto px-4; }
-.card { @apply bg-white/5 backdrop-blur rounded-2xl border border-white/10 shadow-xl; }
+
+.card {
+  @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+}
