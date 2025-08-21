@@ -39,12 +39,10 @@ export default function ChatPage() {
       localStorage.setItem("free_used", "1");
       setFreeUsed(true);
     } else {
-      // Signed in required
       if (!isSignedIn) {
         setError("Please sign in to continue after your first free question.");
         return;
       }
-      // Check subscription
       const sub = await fetch("/api/subscription/check");
       const data = await sub.json();
       if (!data.active) {
@@ -86,14 +84,20 @@ export default function ChatPage() {
         <div ref={listRef} className="h-[60vh] overflow-y-auto pr-1 space-y-4">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2 border ${m.role === "user" ? "bg-white text-black border-white/10" : "bg-white/5 border-white/10"}`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-2 border ${
+                  m.role === "user"
+                    ? "bg-blue-600 text-white border-blue-700"
+                    : "bg-slate-100 text-slate-900 border-slate-200"
+                }`}
+              >
                 <p className="whitespace-pre-wrap">{m.content}</p>
               </div>
             </div>
           ))}
           {sending && (
             <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-2xl px-4 py-2 border bg-white/5 border-white/10">
+              <div className="max-w-[80%] rounded-2xl px-4 py-2 border bg-slate-100 text-slate-900 border-slate-200">
                 <p>Thinking…</p>
               </div>
             </div>
@@ -106,28 +110,28 @@ export default function ChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
             placeholder="Ask your finance mentor…"
-            className="w-full min-h-[80px] p-3 rounded-xl bg-white/5 border border-white/15 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
           <div className="flex items-center justify-between">
             <SignedOut>
               {freeUsed ? (
-                <div className="text-sm text-orange-200">Sign in to continue after your first free question.</div>
+                <div className="text-sm text-amber-700">Sign in to continue after your first free question.</div>
               ) : (
-                <div className="text-sm text-green-200">Your first question is free.</div>
+                <div className="text-sm text-emerald-700">Your first question is free.</div>
               )}
             </SignedOut>
             <SignedIn>
-              <div className="text-sm text-gray-300">Subscribers get unlimited conversations.</div>
+              <div className="text-sm text-slate-600">Subscribers get unlimited conversations.</div>
             </SignedIn>
             <button
               onClick={onSend}
               disabled={sending || !canSend()}
-              className="px-4 py-2 rounded-xl bg-white text-black font-medium disabled:opacity-60"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
             >
               Send
             </button>
           </div>
-          {error && <p className="text-red-300 text-sm">{error}</p>}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
         </div>
       </div>
     </main>
