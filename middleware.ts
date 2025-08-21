@@ -1,9 +1,8 @@
-import { authMiddleware } from "@clerk/nextjs";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export default authMiddleware({
-  publicRoutes: ["/", "/chat", "/api/chat", "/api/subscription/check"],
-});
+// All routes public by default; gating happens in the UI/API routes.
+export default clerkMiddleware();
 
 export const config = {
-  matcher: ["/((?!.*\..*|_next).*)", "/"],
+  matcher: ["/((?!.*\\..*|_next).*)", "/"],
 };
