@@ -27,13 +27,13 @@ export default function SubscribePage() {
   return (
     <main className="container py-12">
       <div className="max-w-xl mx-auto card p-8">
-        <h1 className="text-2xl font-bold">Pro Plan</h1>
-        <p className="text-gray-300 mt-2">
+        <h1 className="text-2xl font-bold text-slate-900">Pro Plan</h1>
+        <p className="text-slate-600 mt-2">
           Unlimited chat conversations with your finance mentor. Cancel anytime.
         </p>
-        <div className="mt-6 p-4 rounded-lg bg-white/5 border border-white/10">
-          <p className="text-sm text-gray-300">What you get:</p>
-          <ul className="list-disc list-inside text-gray-200 mt-2 space-y-1">
+        <div className="mt-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+          <p className="text-sm text-slate-600">What you get:</p>
+          <ul className="list-disc list-inside text-slate-700 mt-2 space-y-1">
             <li>Unlimited questions & follow-ups</li>
             <li>Resume/CV reviews with targeted wording</li>
             <li>Offer evaluations & negotiation prep</li>
@@ -44,7 +44,7 @@ export default function SubscribePage() {
         <div className="mt-6">
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="px-4 py-2 rounded-xl bg-white text-black font-medium w-full">
+              <button className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full hover:bg-blue-700 transition">
                 Sign in to subscribe
               </button>
             </SignInButton>
@@ -53,13 +53,13 @@ export default function SubscribePage() {
             <button
               onClick={beginCheckout}
               disabled={loading}
-              className="px-4 py-2 rounded-xl bg-white text-black font-medium w-full disabled:opacity-60"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full disabled:opacity-60 hover:bg-blue-700 transition"
             >
               {loading ? "Redirecting to checkout..." : "Subscribe monthly"}
             </button>
           </SignedIn>
         </div>
-        {error && <p className="text-red-300 text-sm mt-3">{error}</p>}
+        {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
       </div>
     </main>
   );
