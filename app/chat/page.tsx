@@ -192,7 +192,7 @@ export default function ChatPage() {
   const injectExtractedText = (label: string, raw: string) => {
     const clipped = raw.slice(0, MAX_TEXT_LENGTH);
     const prefix = `${label} extracted content (truncated if long):\n\n`;
-    setInput((prev) => `${prev ? prev + "\\n\\n" : ""}${prefix}${clipped}`);
+    setInput((prev) => `${prev ? prev + "\n\n" : ""}${prefix}${clipped}`);
     textareaRef.current?.focus();
   };
 
@@ -274,9 +274,6 @@ export default function ChatPage() {
             </div>
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
-          <p className="text-[12px] text-slate-500">
-            Not legal or financial advice. Avoid sharing confidential or proprietary information.
-          </p>
         </div>
       </div>
     </main>
