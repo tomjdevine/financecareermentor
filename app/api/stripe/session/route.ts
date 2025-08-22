@@ -10,10 +10,21 @@ export async function GET(req: NextRequest) {
     if (!sessionId) return NextResponse.json({ error: "Missing session_id" }, { status: 400 });
 
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["customer"] });
-    const email =
-      (session.customer_details && session.customer_details.email) ||
-      (typeof session.customer !== "string" && session.customer?.email) ||
-      null;
+
+    // Safely derive the purchaser email:
+    // 1) Prefer session.customer_details.email
+    // 2) Fallback to expanded customer.email when it's a non-deleted Customer object
+    let email: string | null = null;
+    if (session.customer_details?.email) {
+      email = session.customer_details.email;
+    } else if (session.customer && typeof session.customer !== "string") {
+      const cust = session.customer as Stripe.Customer | Stripe.DeletedCustomer;
+      if ("deleted" in cust && cust.deleted) {
+        email = null;
+      } else if ("email" in cust) {
+        email = (cust as Stripe.Customer).email ?? null;
+      }
+    }
 
     return NextResponse.json({ email, status: session.status, subscription: session.subscription });
   } catch (e: any) {
