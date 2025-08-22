@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -6,6 +5,9 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_TEXT_LENGTH = 12000; // cap the text we inject to keep prompts manageable
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Msg[]>([
@@ -99,16 +101,24 @@ export default function ChatPage() {
 
   const handleFile = async (file: File) => {
     try {
-      const ext = (file.name.toLowerCase().split(".").pop() || "").trim();
-      if (ext === "txt" || file.type.startsWith("text/")) {
-        const text = await file.text();
-        setInput((prev) => `${prev ? prev + "\n\n" : ""}Please review the following resume:\n\n${text}`);
-        textareaRef.current?.focus();
+      setError(null);
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setError(`File too large. Max size is ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB.`);
         return;
       }
+      const name = file.name || "attachment";
+      const ext = (file.name.toLowerCase().split(".").pop() || "").trim();
+
+      // TXT
+      if (ext === "txt" || file.type.startsWith("text/")) {
+        const text = await file.text();
+        injectExtractedText(`Text file: ${name}`, text);
+        return;
+      }
+
+      // PDF
       if (ext === "pdf" || file.type === "application/pdf") {
         const buf = await file.arrayBuffer();
-        // Lazy-load pdfjs (v4) from the package root. Avoid build-specific deep paths.
         const pdfjs: any = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc =
           "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
@@ -119,19 +129,71 @@ export default function ChatPage() {
           const content = await page.getTextContent();
           const text = (content.items as any[]).map((it) => ("str" in it ? it.str : "")).join(" ");
           out.push(text);
-          if (out.join(" ").length > 12000) break; // avoid overly long prompts
+          if (out.join(" ").length > MAX_TEXT_LENGTH) break;
         }
         const combined = out.join("\n\n").trim();
-        setInput((prev) => `${prev ? prev + "\n\n" : ""}Please review the following resume (extracted from PDF):\n\n${combined}`);
-        textareaRef.current?.focus();
+        injectExtractedText(`PDF document: ${name}`, combined);
         return;
       }
-      // Fallback: unsupported
-      setError("Unsupported file type. Please upload a PDF or TXT file.");
+
+      // DOCX
+      if (ext === "docx") {
+        const buf = await file.arrayBuffer();
+        const mammoth: any = await import("mammoth/mammoth.browser");
+        const result = await mammoth.extractRawText({ arrayBuffer: buf });
+        const text: string = (result && result.value) || "";
+        injectExtractedText(`DOCX document: ${name}`, text);
+        return;
+      }
+
+      // DOC (legacy)
+      if (ext === "doc") {
+        setError("Legacy .doc files aren't supported. Please convert to PDF or DOCX and try again.");
+        return;
+      }
+
+      // CSV
+      if (ext === "csv") {
+        const text = await file.text();
+        injectExtractedText(`CSV data: ${name}`, text);
+        return;
+      }
+
+      // XLS / XLSX
+      if (ext === "xls" || ext === "xlsx") {
+        const buf = await file.arrayBuffer();
+        const XLSX: any = await import("xlsx");
+        const wb = XLSX.read(buf, { type: "array" });
+        const pieces: string[] = [];
+        wb.SheetNames.forEach((sheetName: string) => {
+          const ws = wb.Sheets[sheetName];
+          if (!ws) return;
+          try {
+            const csv = XLSX.utils.sheet_to_csv(ws);
+            pieces.push(`--- Sheet: ${sheetName} ---\n${csv}`);
+          } catch {
+            // Fallback to JSON rows if CSV fails
+            const json = XLSX.utils.sheet_to_json(ws);
+            pieces.push(`--- Sheet: ${sheetName} (JSON) ---\n${JSON.stringify(json)}`);
+          }
+        });
+        const merged = pieces.join("\n\n");
+        injectExtractedText(`Spreadsheet: ${name}`, merged);
+        return;
+      }
+
+      setError("Unsupported file type. Please upload PDF, TXT, DOCX, XLS/XLSX, or CSV.");
     } catch (err: any) {
       console.error(err);
-      setError("Couldn't read that file. Please try a different format (PDF or TXT).");
+      setError("Couldn't read that file. Please try a different format (PDF, DOCX, XLS/XLSX, CSV, or TXT).");
     }
+  };
+
+  const injectExtractedText = (label: string, raw: string) => {
+    const clipped = raw.slice(0, MAX_TEXT_LENGTH);
+    const prefix = `${label} extracted content (truncated if long):\n\n`;
+    setInput((prev) => `${prev ? prev + "\n\n" : ""}${prefix}${clipped}`);
+    textareaRef.current?.focus();
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +234,7 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Ask your finance mentor… (or attach a PDF/TXT resume)"
+            placeholder="Ask your finance mentor… (attach PDF, DOCX, XLS/XLSX, CSV or TXT)"
             className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
           <div className="flex items-center justify-between gap-2">
@@ -180,7 +242,7 @@ export default function ChatPage() {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.txt,text/plain,application/pdf"
+                accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
                 className="hidden"
                 onChange={onFileChange}
               />
@@ -212,6 +274,9 @@ export default function ChatPage() {
             </div>
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
+          <p className="text-[12px] text-slate-500">
+            Not legal or financial advice. Avoid sharing confidential or proprietary information.
+          </p>
         </div>
       </div>
     </main>

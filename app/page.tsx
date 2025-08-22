@@ -51,7 +51,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CHIPS — examples of manager/director conversations */}
+      {/* CHIPS */}
       <section className="mt-4">
         <div className="card p-4">
           <div className="flex flex-wrap gap-2">
@@ -69,7 +69,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* DEMO VIDEO — screen recording of chat interaction */}
+      {/* DEMO VIDEO */}
       <section className="mt-6">
         <div className="card p-3">
           <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-100 border border-slate-200">
@@ -94,8 +94,6 @@ export default function Home() {
           </p>
         </div>
       </section>
-
-      {/* (Existing sections remain below) */}
 
       {/* VALUE PROPS */}
       <section className="grid md:grid-cols-2 gap-6 mt-12">
@@ -127,7 +125,9 @@ export default function Home() {
           The mentor is tuned to think like a seasoned finance executive. It emphasizes concrete frameworks used by VPs, CFOs, and hiring managers.
           We’re evolving toward a richer knowledge base curated from industry leaders and high-quality public sources to deliver highly relevant, role-specific advice.
         </p>
-        <p className="text-slate-500 text-sm mt-2">Note: Do not share confidential or proprietary information.</p>
+        <p className="text-slate-500 text-sm mt-2">
+          Not legal or financial advice. Avoid sharing confidential or proprietary information.
+        </p>
       </section>
 
       {/* PRICING */}
