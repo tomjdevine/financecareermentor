@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -5,14 +6,16 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
+type Msg = { role: "user" | "assistant"; content: string };
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
+  const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hi — I’m your finance career mentor. What’s on your mind?" }
   ]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
+  const [input, setInput] = useState<string>("");
+  const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [freeUsed, setFreeUsed] = useState(false);
+  const [freeUsed, setFreeUsed] = useState<boolean>(false);
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,7 +67,7 @@ export default function ChatPage() {
       }
     }
 
-    const newMessages = [...messages, { role: "user", content: input }];
+    const newMessages: Msg[] = [...messages, { role: "user", content: input }];
     setMessages(newMessages);
     setInput("");
     setSending(true);
@@ -76,7 +79,8 @@ export default function ChatPage() {
       });
       if (!res.ok) throw new Error("Failed to get reply");
       const data = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: data.reply }]);
+      const assistantMsg: Msg = { role: "assistant", content: data.reply as string };
+      setMessages([...newMessages, assistantMsg]);
     } catch (e: any) {
       setError(e.message || "Something went wrong.");
     } finally {
@@ -96,7 +100,7 @@ export default function ChatPage() {
 
   const handleFile = async (file: File) => {
     try {
-      const ext = file.name.toLowerCase().split(".").pop() || "";
+      const ext = (file.name.toLowerCase().split(".").pop() || "").trim();
       if (ext === "txt" || file.type.startsWith("text/")) {
         const text = await file.text();
         setInput((prev) => `${prev ? prev + "\n\n" : ""}Please review the following resume:\n\n${text}`);
@@ -110,11 +114,11 @@ export default function ChatPage() {
         (pdfjs as any).GlobalWorkerOptions.workerSrc =
           "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
         const pdf: PDFDocumentProxy = await (pdfjs as any).getDocument({ data: buf }).promise;
-        let out: string[] = [];
+        const out: string[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          const text = content.items.map((it: any) => ("str" in it ? it.str : "")).join(" ");
+          const text = (content.items as any[]).map((it) => ("str" in it ? it.str : "")).join(" ");
           out.push(text);
           if (out.join(" ").length > 12000) break; // avoid overly long prompts
         }
@@ -134,7 +138,6 @@ export default function ChatPage() {
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) await handleFile(f);
-    // reset so the same file can be chosen again
     if (fileRef.current) fileRef.current.value = "";
   };
 
