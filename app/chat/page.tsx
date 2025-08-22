@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
-
-type Msg = { role: "user" | "assistant"; content: string };
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Msg[]>([
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     { role: "assistant", content: "Hi — I’m your finance career mentor. What’s on your mind?" }
   ]);
   const [input, setInput] = useState("");
@@ -17,6 +16,7 @@ export default function ChatPage() {
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -30,7 +30,6 @@ export default function ChatPage() {
     const q = searchParams.get("q");
     if (q && !input) {
       setInput(q);
-      // Focus the textarea for convenience
       setTimeout(() => textareaRef.current?.focus(), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,8 +40,8 @@ export default function ChatPage() {
   }, [messages, sending]);
 
   const canSend = () => {
-    if (!freeUsed) return true; // first question free
-    return isSignedIn; // after that, must sign in AND have subscription (checked when sending)
+    if (!freeUsed) return true;
+    return isSignedIn;
   };
 
   const onSend = async () => {
@@ -65,7 +64,7 @@ export default function ChatPage() {
       }
     }
 
-    const newMessages = [...messages, { role: "user", content: input } as Msg];
+    const newMessages = [...messages, { role: "user", content: input }];
     setMessages(newMessages);
     setInput("");
     setSending(true);
@@ -90,6 +89,53 @@ export default function ChatPage() {
       e.preventDefault();
       onSend();
     }
+  };
+
+  // --- File upload handlers ---
+  const openFilePicker = () => fileRef.current?.click();
+
+  const handleFile = async (file: File) => {
+    try {
+      const ext = file.name.toLowerCase().split(".").pop() || "";
+      if (ext === "txt" || file.type.startsWith("text/")) {
+        const text = await file.text();
+        setInput((prev) => `${prev ? prev + "\n\n" : ""}Please review the following resume:\n\n${text}`);
+        textareaRef.current?.focus();
+        return;
+      }
+      if (ext === "pdf" || file.type === "application/pdf") {
+        const buf = await file.arrayBuffer();
+        // Lazy-load pdfjs to keep bundle light
+        const pdfjs = await import("pdfjs-dist/build/pdf");
+        (pdfjs as any).GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
+        const pdf: PDFDocumentProxy = await (pdfjs as any).getDocument({ data: buf }).promise;
+        let out: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const text = content.items.map((it: any) => ("str" in it ? it.str : "")).join(" ");
+          out.push(text);
+          if (out.join(" ").length > 12000) break; // avoid overly long prompts
+        }
+        const combined = out.join("\n\n").trim();
+        setInput((prev) => `${prev ? prev + "\n\n" : ""}Please review the following resume (extracted from PDF):\n\n${combined}`);
+        textareaRef.current?.focus();
+        return;
+      }
+      // Fallback: unsupported
+      setError("Unsupported file type. Please upload a PDF or TXT file.");
+    } catch (err: any) {
+      console.error(err);
+      setError("Couldn't read that file. Please try a different format (PDF or TXT).");
+    }
+  };
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) await handleFile(f);
+    // reset so the same file can be chosen again
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   return (
@@ -124,27 +170,44 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Ask your finance mentor…"
+            placeholder="Ask your finance mentor… (or attach a PDF/TXT resume)"
             className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
-          <div className="flex items-center justify-between">
-            <SignedOut>
-              {freeUsed ? (
-                <div className="text-sm text-amber-700">Sign in to continue after your first free question.</div>
-              ) : (
-                <div className="text-sm text-emerald-700">Your first question is free.</div>
-              )}
-            </SignedOut>
-            <SignedIn>
-              <div className="text-sm text-slate-600">Subscribers get unlimited conversations.</div>
-            </SignedIn>
-            <button
-              onClick={onSend}
-              disabled={sending || !canSend()}
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
-            >
-              Send
-            </button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,text/plain,application/pdf"
+                className="hidden"
+                onChange={onFileChange}
+              />
+              <button
+                onClick={openFilePicker}
+                className="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Attach file
+              </button>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <SignedOut>
+                {freeUsed ? (
+                  <div className="text-sm text-amber-700">Sign in to continue after your first free question.</div>
+                ) : (
+                  <div className="text-sm text-emerald-700">Your first question is free.</div>
+                )}
+              </SignedOut>
+              <SignedIn>
+                <div className="text-sm text-slate-600">Subscribers get unlimited conversations.</div>
+              </SignedIn>
+              <button
+                onClick={onSend}
+                disabled={sending || !canSend()}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
+              >
+                Send
+              </button>
+            </div>
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
         </div>
