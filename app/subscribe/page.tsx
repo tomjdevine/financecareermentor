@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useState } from "react";
 
 export default function SubscribePage() {
@@ -11,13 +11,17 @@ export default function SubscribePage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to create checkout session");
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        cache: "no-store",
+      });
       const data = await res.json();
-      if (data.url) window.location.href = data.url as string;
-      else throw new Error("No checkout URL received");
+      if (!res.ok) throw new Error(data?.error || `Checkout failed (HTTP ${res.status})`);
+      if (!data?.url) throw new Error("No checkout URL received from Stripe.");
+      window.location.href = data.url as string;
     } catch (e: any) {
-      setError(e.message || "Something went wrong");
+      setError(e.message || "Failed to create checkout session");
     } finally {
       setLoading(false);
     }
@@ -41,16 +45,14 @@ export default function SubscribePage() {
         </div>
 
         <div className="mt-6">
-          {/* Signed-out users go straight to Stripe Checkout (account created after payment on /welcome) */}
+          {/* Signed-out: prompt to sign up (default flow) and a small "Already a member?" sign-in link */}
           <SignedOut>
             <div className="grid gap-2">
-              <button
-                onClick={beginCheckout}
-                disabled={loading}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full disabled:opacity-60 hover:bg-blue-700 transition"
-              >
-                {loading ? "Redirecting..." : "Get Started"}
-              </button>
+              <SignUpButton mode="modal">
+                <button className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full hover:bg-blue-700 transition">
+                  Sign up now
+                </button>
+              </SignUpButton>
               <div className="text-center text-sm text-slate-600">
                 Already a member?{" "}
                 <SignInButton mode="modal">
@@ -60,7 +62,7 @@ export default function SubscribePage() {
             </div>
           </SignedOut>
 
-          {/* Signed-in users can also subscribe directly */}
+          {/* Signed-in: take them to Stripe Checkout */}
           <SignedIn>
             <button
               onClick={beginCheckout}
