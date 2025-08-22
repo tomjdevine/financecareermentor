@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { supabaseAdmin } from "../../../../lib/db";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ const stripe = new Stripe(STRIPE_SECRET_KEY || "", { apiVersion: "2024-06-20" } 
 
 export async function POST() {
   const { userId } = auth();
-
   if (!userId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
@@ -33,13 +33,37 @@ export async function POST() {
       user?.emailAddresses?.[0]?.emailAddress ||
       undefined;
 
+    // Ensure an app_users row exists; fetch known customer id if any
+    const { data: existingUser, error: userFetchErr } = await supabaseAdmin
+      .from("app_users")
+      .select("clerk_user_id, stripe_customer_id")
+      .eq("clerk_user_id", userId)
+      .maybeSingle();
+
+    if (userFetchErr) {
+      throw new Error(`DB read failed: ${userFetchErr.message}`);
+    }
+
+    let stripeCustomerId = existingUser?.stripe_customer_id || null;
+
+    if (!existingUser) {
+      const { error: insErr } = await supabaseAdmin
+        .from("app_users")
+        .insert({ clerk_user_id: userId, email });
+      if (insErr) throw new Error(`DB insert failed: ${insErr.message}`);
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer_creation: "always",
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       allow_promotion_codes: true,
-      customer_email: email,
+      customer: stripeCustomerId || undefined,
+      customer_email: stripeCustomerId ? undefined : email,
       client_reference_id: userId,
+      subscription_data: {
+        metadata: { clerkUserId: userId },
+      },
+      automatic_tax: { enabled: true },
       success_url: `${APP_URL}/chat?subscribed=1`,
       cancel_url: `${APP_URL}/subscribe?canceled=1`,
     });
