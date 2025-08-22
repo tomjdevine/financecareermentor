@@ -341,7 +341,7 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKey}
-              placeholder="Ask your finance mentor… (attach PDF, DOCX, XLS/XLSX, CSV or TXT)"
+              placeholder="Ask your finance mentor a question…"
               className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             <div className="flex items-center justify-between gap-2">
