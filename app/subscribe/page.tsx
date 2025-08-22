@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { useUser, SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useState } from "react";
 
 export default function SubscribePage() {
@@ -27,7 +27,7 @@ export default function SubscribePage() {
   return (
     <main className="container py-12">
       <div className="max-w-xl mx-auto card p-8">
-        <h1 className="text-2xl font-bold text-slate-900">Pro Plan</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Unlimited Plan</h1>
         <p className="text-slate-600 mt-2">
           Unlimited chat conversations with your finance mentor. Cancel anytime.
         </p>
@@ -43,11 +43,19 @@ export default function SubscribePage() {
 
         <div className="mt-6">
           <SignedOut>
-            <SignInButton mode="modal">
-              <button className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full hover:bg-blue-700 transition">
-                Sign in to subscribe
-              </button>
-            </SignInButton>
+            <div className="grid gap-2">
+              <SignUpButton mode="modal">
+                <button className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full hover:bg-blue-700 transition">
+                  Sign up now
+                </button>
+              </SignUpButton>
+              <div className="text-center text-sm text-slate-600">
+                Already a member?{" "}
+                <SignInButton mode="modal">
+                  <button className="underline underline-offset-2 hover:text-slate-900">Sign in</button>
+                </SignInButton>
+              </div>
+            </div>
           </SignedOut>
           <SignedIn>
             <button
