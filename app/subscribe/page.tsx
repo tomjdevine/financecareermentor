@@ -1,10 +1,9 @@
 "use client";
 
-import { useUser, SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useState } from "react";
 
 export default function SubscribePage() {
-  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +26,7 @@ export default function SubscribePage() {
   return (
     <main className="container py-12">
       <div className="max-w-xl mx-auto card p-8">
-        <h1 className="text-2xl font-bold text-slate-900">Unlimited Plan</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Unlimited Plan - $9 per month</h1>
         <p className="text-slate-600 mt-2">
           Unlimited chat conversations with your finance mentor. Cancel anytime.
         </p>
@@ -42,13 +41,16 @@ export default function SubscribePage() {
         </div>
 
         <div className="mt-6">
+          {/* Signed-out users go straight to Stripe Checkout (account created after payment on /welcome) */}
           <SignedOut>
             <div className="grid gap-2">
-              <SignUpButton mode="modal">
-                <button className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full hover:bg-blue-700 transition">
-                  Sign up now
-                </button>
-              </SignUpButton>
+              <button
+                onClick={beginCheckout}
+                disabled={loading}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full disabled:opacity-60 hover:bg-blue-700 transition"
+              >
+                {loading ? "Redirecting..." : "Get Started"}
+              </button>
               <div className="text-center text-sm text-slate-600">
                 Already a member?{" "}
                 <SignInButton mode="modal">
@@ -57,13 +59,15 @@ export default function SubscribePage() {
               </div>
             </div>
           </SignedOut>
+
+          {/* Signed-in users can also subscribe directly */}
           <SignedIn>
             <button
               onClick={beginCheckout}
               disabled={loading}
               className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium w-full disabled:opacity-60 hover:bg-blue-700 transition"
             >
-              {loading ? "Redirecting to checkout..." : "Subscribe monthly"}
+              {loading ? "Redirecting..." : "Subscribe monthly"}
             </button>
           </SignedIn>
         </div>
