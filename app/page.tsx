@@ -147,7 +147,7 @@ export default function Home() {
                 }
               }}
             >
-              Subscribe
+              Get Started
             </Link>
           </div>
           <ul className="list-disc list-inside text-slate-700 mt-4 space-y-1">
