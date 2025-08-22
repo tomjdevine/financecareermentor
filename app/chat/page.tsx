@@ -139,6 +139,7 @@ export default function ChatPage() {
       // DOCX
       if (ext === "docx") {
         const buf = await file.arrayBuffer();
+        // @ts-ignore - mammoth browser build has no official types
         const mammoth: any = await import("mammoth/mammoth.browser");
         const result = await mammoth.extractRawText({ arrayBuffer: buf });
         const text: string = (result && result.value) || "";
@@ -172,7 +173,6 @@ export default function ChatPage() {
             const csv = XLSX.utils.sheet_to_csv(ws);
             pieces.push(`--- Sheet: ${sheetName} ---\n${csv}`);
           } catch {
-            // Fallback to JSON rows if CSV fails
             const json = XLSX.utils.sheet_to_json(ws);
             pieces.push(`--- Sheet: ${sheetName} (JSON) ---\n${JSON.stringify(json)}`);
           }
@@ -192,7 +192,7 @@ export default function ChatPage() {
   const injectExtractedText = (label: string, raw: string) => {
     const clipped = raw.slice(0, MAX_TEXT_LENGTH);
     const prefix = `${label} extracted content (truncated if long):\n\n`;
-    setInput((prev) => `${prev ? prev + "\n\n" : ""}${prefix}${clipped}`);
+    setInput((prev) => `${prev ? prev + "\\n\\n" : ""}${prefix}${clipped}`);
     textareaRef.current?.focus();
   };
 
@@ -267,7 +267,7 @@ export default function ChatPage() {
               <button
                 onClick={onSend}
                 disabled={sending || !canSend()}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
+                className="px-4 py-2 rounded-2xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
               >
                 Send
               </button>
