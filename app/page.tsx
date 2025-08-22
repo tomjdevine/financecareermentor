@@ -9,28 +9,95 @@ export default function Home() {
     }
   };
 
+  const trackChip = (label: string) => {
+    if (typeof window !== "undefined" && (window as any).gtag) {
+      (window as any).gtag("event", "chip_click", { label });
+    }
+  };
+
+  const chips = [
+    "How do I ask for a raise?",
+    "I got an offer for Senior Analyst on another team—should I take it?",
+    "How do I move from Audit to FP&A?",
+    "Should I accept a lateral move for better mentorship?",
+    "How do I prepare for promotion to Manager?",
+    "Can you review my CV for an FP&A role?",
+    "How do I quantify my resume bullets?",
+    "How do I negotiate more equity?",
+    "Is an MBA worth it for my goals?",
+    "How do I prep for a CFO skip-level?",
+    "Offer A vs Offer B—what drives long-term upside?",
+    "How do I handle a tough performance review?"
+  ];
+
   return (
     <main className="container py-16">
-      {/* Hero */}
-      <section className="grid gap-6 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold leading-tight text-slate-900">
+      {/* HERO — bigger and centered */}
+      <section className="min-h-[70vh] flex flex-col items-center justify-center gap-6 text-center">
+        <h1 className="text-5xl md:text-6xl font-bold leading-tight text-slate-900">
           Chat with a seasoned finance mentor—anytime
         </h1>
-        <h2 className="text-lg text-slate-600 max-w-2xl mx-auto">
+        <h2 className="text-xl text-slate-600 max-w-3xl mx-auto">
           Get actionable guidance from an AI mentor trained on 50,000 finance-career insights curated from industry-leading executives.
         </h2>
         <div>
           <Link
             href="/chat"
             onClick={trackStartChat}
-            className="inline-block px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+            className="inline-block px-5 py-3 rounded-2xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
           >
             Ask your question
           </Link>
         </div>
       </section>
 
-      {/* Value props */}
+      {/* CHIPS — examples of manager/director conversations */}
+      <section className="mt-4">
+        <div className="card p-4">
+          <div className="flex flex-wrap gap-2">
+            {chips.map((c) => (
+              <Link
+                key={c}
+                href={`/chat?q=${encodeURIComponent(c)}`}
+                onClick={() => trackChip(c)}
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                {c}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* DEMO VIDEO — screen recording of chat interaction */}
+      <section className="mt-6">
+        <div className="card p-3">
+          <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-100 border border-slate-200">
+            <video
+              controls
+              playsInline
+              preload="none"
+              poster="/demo-poster.png"
+              className="h-full w-full"
+              onPlay={() => {
+                if (typeof window !== "undefined" && (window as any).gtag) {
+                  (window as any).gtag("event", "demo_play");
+                }
+              }}
+            >
+              <source src="/demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Short demo: asking the mentor to help prepare for a manager conversation.
+          </p>
+        </div>
+      </section>
+
+      {/* (Existing sections remain below) */}
+
+      {/* VALUE PROPS */}
       <section className="grid md:grid-cols-2 gap-6 mt-12">
         <div className="card p-6">
           <h3 className="text-xl font-semibold mb-2 text-slate-900">High-impact use cases</h3>
@@ -53,7 +120,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Grounded */}
+      {/* GROUNDING */}
       <section className="card p-6 mt-6">
         <h3 className="text-xl font-semibold mb-2 text-slate-900">Grounded in real finance know-how</h3>
         <p className="text-slate-700">
@@ -63,7 +130,7 @@ export default function Home() {
         <p className="text-slate-500 text-sm mt-2">Note: Do not share confidential or proprietary information.</p>
       </section>
 
-      {/* Pricing */}
+      {/* PRICING */}
       <section className="mt-10">
         <div className="card p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -73,7 +140,12 @@ export default function Home() {
             </div>
             <Link
               href="/subscribe"
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition text-center"
+              className="px-4 py-2 rounded-2xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition text-center"
+              onClick={() => {
+                if (typeof window !== "undefined" && (window as any).gtag) {
+                  (window as any).gtag("event", "subscribe_click", { location: "pricing" });
+                }
+              }}
             >
               Subscribe
             </Link>
@@ -97,7 +169,7 @@ export default function Home() {
           <Link
             href="/chat"
             onClick={trackStartChat}
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+            className="px-4 py-2 rounded-2xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
           >
             Ask your question
           </Link>
