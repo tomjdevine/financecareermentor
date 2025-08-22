@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <footer className="py-10 text-center text-sm text-slate-600">
             <div className="container">
               <p>© {new Date().getFullYear()} Finance Career Mentor.</p>
-              <p className="mt-2">Not legal, financial, or HR advice. Avoid sharing confidential or proprietary information.</p>
+              <p className="mt-2">Not legal or financial advice. Avoid sharing confidential or proprietary information.</p>
             </div>
           </footer>
         </body>
