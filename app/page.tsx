@@ -12,11 +12,11 @@ export default function Home() {
   return (
     <main className="container py-16">
       {/* Hero */}
-      <section className="grid gap-6">
+      <section className="grid gap-6 text-center">
         <h1 className="text-4xl md:text-5xl font-bold leading-tight text-slate-900">
           Chat with a seasoned finance mentor—anytime
         </h1>
-        <h2 className="text-lg text-slate-600 max-w-2xl">
+        <h2 className="text-lg text-slate-600 max-w-2xl mx-auto">
           Get actionable guidance from an AI mentor trained on 50,000 finance-career insights curated from industry-leading executives.
         </h2>
         <div>
@@ -53,7 +53,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Grounding */}
+      {/* Grounded */}
       <section className="card p-6 mt-6">
         <h3 className="text-xl font-semibold mb-2 text-slate-900">Grounded in real finance know-how</h3>
         <p className="text-slate-700">
