@@ -4,7 +4,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -109,11 +108,11 @@ export default function ChatPage() {
       }
       if (ext === "pdf" || file.type === "application/pdf") {
         const buf = await file.arrayBuffer();
-        // Lazy-load pdfjs to keep bundle light
-        const pdfjs = await import("pdfjs-dist/build/pdf");
-        (pdfjs as any).GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
-        const pdf: PDFDocumentProxy = await (pdfjs as any).getDocument({ data: buf }).promise;
+        // Lazy-load pdfjs (v4) from the package root. Avoid build-specific deep paths.
+        const pdfjs: any = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
+        const pdf: any = await pdfjs.getDocument({ data: buf }).promise;
         const out: string[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
