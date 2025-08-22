@@ -1,46 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const systemPrompt = `You are a seasoned finance executive (CFO / Head of Finance) offering career advice.
-Be candid, specific, and practical. Use bullet points when helpful.
-When asked to review a CV/resume, suggest structure, keywords, and quantified achievements.
-When asked about offers, analyze role scope, trajectory, brand, manager quality, comp, and exit options.
-When asked about raises, propose a plan: evidence, timing, framing, and alternatives.
-Avoid legal/HR-sensitive claims; recommend professional help when necessary. Keep answers under ~200 words unless asked for more.`;
+export const runtime = "nodejs";
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+
+const BASE_SYSTEM_PROMPT = `
+You are an AI career mentor for finance professionals. Your job is to give specific, actionable, role-aware guidance.
+- Adopt the persona specified below as the *mentor profile* and reason from that vantage point.
+- Be practical, concise, and structured. Prefer bullet points, frameworks, scripts, and examples.
+- When asked to review resumes, propose stronger bullet wording with metrics and results.
+- When asked about offers, weigh scope, manager quality, trajectory, brand, comp mix (base/bonus/equity), and exit options.
+- When asked about raises/promo, provide preparation checklists and talk tracks.
+- Avoid legal or investment advice; do not provide tax, legal, or HR compliance guidance.
+`;
+
+function buildSystemPrompt(mentorProfile: string) {
+  const profile = mentorProfile?.trim() || "Seasoned finance executive";
+  return `Mentor profile: ${profile}\n\n${BASE_SYSTEM_PROMPT}`.trim();
+}
 
 export async function POST(req: NextRequest) {
+  if (!OPENAI_API_KEY) {
+    return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
+  }
+
+  const body = await req.json().catch(() => null);
+  if (!body || !Array.isArray(body.messages)) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+  const mentorProfile = (body.mentorProfile as string) || "Seasoned finance executive";
+  const userMessages = body.messages.filter((m: any) => m && typeof m.content === "string");
+
+  const messages = [
+    { role: "system", content: buildSystemPrompt(mentorProfile) },
+    ...userMessages,
+  ] as { role: "system" | "user" | "assistant"; content: string }[];
+
   try {
-    const body = await req.json();
-    const messages = body?.messages;
-    if (!Array.isArray(messages)) {
-      return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
-    }
-
-    const payload = {
-      model: "gpt-4o-mini",
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...messages
-      ],
-    };
-
     const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        messages,
+      }),
     });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      return NextResponse.json({ error: "OpenAI error", detail: text }, { status: 500 });
+      const err = await resp.text();
+      return NextResponse.json({ error: `OpenAI error: ${err}` }, { status: 500 });
     }
     const data = await resp.json();
-    const reply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a response.";
+    const reply = data?.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
     return NextResponse.json({ reply });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Unknown error" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Chat error" }, { status: 500 });
   }
 }
