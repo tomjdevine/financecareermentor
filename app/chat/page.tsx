@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useUser, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -15,12 +16,25 @@ export default function ChatPage() {
   const [freeUsed, setFreeUsed] = useState(false);
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       setFreeUsed(localStorage.getItem("free_used") === "1");
     }
   }, []);
+
+  // Pre-fill input when arriving via /chat?q=...
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !input) {
+      setInput(q);
+      // Focus the textarea for convenience
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -106,6 +120,7 @@ export default function ChatPage() {
 
         <div className="mt-4 grid gap-2">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
