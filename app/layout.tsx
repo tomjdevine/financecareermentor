@@ -47,6 +47,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/account" className="text-slate-700 hover:text-slate-900">
                   Account
                 </Link>
+                <Link href="/contact" className="text-slate-700 hover:text-slate-900">
+                  Contact
+                </Link>
                 <Link href="/chat" className="text-slate-700 hover:text-slate-900">
                   Chat
                 </Link>
