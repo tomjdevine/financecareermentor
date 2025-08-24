@@ -1,7 +1,6 @@
 "use client";
 
 import { SignedIn, SignedOut, SignInButton, UserProfile } from "@clerk/nextjs";
-import Link from "next/link";
 
 export default function AccountPage() {
   return (
@@ -21,12 +20,12 @@ export default function AccountPage() {
 
       <SignedIn>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card p-4 lg:p-6">
-            {/* Clerk hosted account manager */}
-            <UserProfile routing="path" path="/account" />
+          <div className="card p-4 lg:p-6 order-2 lg:order-1">
+            {/* Render inline, not as a full-page overlay */}
+            <UserProfile routing="hash" />
           </div>
 
-          <div className="card p-4 lg:p-6">
+          <div className="card p-4 lg:p-6 order-1 lg:order-2">
             <h2 className="text-lg font-medium mb-2">Subscription</h2>
             <p className="text-slate-600 mb-4">
               Update payment method, download invoices, or cancel anytime via Stripe’s secure billing portal.
@@ -38,7 +37,7 @@ export default function AccountPage() {
               Manage subscription
             </a>
             <p className="text-xs text-slate-500 mt-3">
-              You’ll be redirected to Stripe Billing Portal.
+              You’ll be redirected to the Stripe Billing Portal.
             </p>
           </div>
         </div>
