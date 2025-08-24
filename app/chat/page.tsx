@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [freeUsed, setFreeUsed] = useState<boolean>(false);
+  const [locked, setLocked] = useState<boolean>(false); // paywall state after free message is used
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -62,26 +63,37 @@ export default function ChatPage() {
   }, [messages, sending]);
 
   const canSend = () => {
+    if (locked) return false;
     if (!freeUsed) return true;
-    return isSignedIn;
+    // After first question, we only allow if user is signed in and has active sub (checked on demand in onSend)
+    return true; // allow the button visually; we'll gate in onSend and then lock if needed
   };
 
   const onSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || locked) return;
     setError(null);
 
     if (!freeUsed) {
       localStorage.setItem("free_used", "1");
       setFreeUsed(true);
     } else {
+      // After first free message, enforce subscription without redirect:
+      //  - If not signed in → lock and show overlay to subscribe.
+      //  - If signed in but no active sub → lock and show overlay to subscribe.
       if (!isSignedIn) {
-        setError("Please sign in to continue after your first free question.");
+        setLocked(true);
         return;
       }
-      const sub = await fetch("/api/subscription/check");
-      const data = await sub.json();
-      if (!data.active) {
-        window.location.href = "/subscribe";
+      try {
+        const sub = await fetch("/api/subscription/check", { headers: { "Content-Type": "application/json" } });
+        const data = await sub.json();
+        if (!data.active) {
+          setLocked(true);
+          return;
+        }
+      } catch {
+        // If we cannot verify, be safe and lock
+        setLocked(true);
         return;
       }
     }
@@ -122,7 +134,9 @@ export default function ChatPage() {
   };
 
   // --- File upload handlers ---
-  const openFilePicker = () => fileRef.current?.click();
+  const openFilePicker = () => {
+    if (!locked) fileRef.current?.click();
+  };
 
   const handleFile = async (file: File) => {
     try {
@@ -223,7 +237,7 @@ export default function ChatPage() {
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) await handleFile(f);
+    if (f && !locked) await handleFile(f);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -247,7 +261,7 @@ export default function ChatPage() {
   };
 
   return (
-    <main className="container py-6">
+    <main className="mx-auto w-full max-w-[1400px] px-4 py-6">
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
         {/* Left rail: mentor profile chips */}
         <aside className="card p-3 h-max sticky top-4">
@@ -335,52 +349,75 @@ export default function ChatPage() {
             )}
           </div>
 
-          <div className="mt-4 grid gap-2">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKey}
-              placeholder="Ask your finance mentor a question…"
-              className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
-                  className="hidden"
-                  onChange={onFileChange}
+          {/* Input area with paywall overlay */}
+          <div className="mt-4 relative">
+            <div className={locked ? "opacity-50 pointer-events-none" : ""}>
+              <div className="grid gap-2">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKey}
+                  placeholder="Ask your finance mentor… (attach PDF, DOCX, XLS/XLSX, CSV or TXT)"
+                  disabled={locked}
+                  className="w-full min-h-[80px] p-3 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-slate-100"
                 />
-                <button
-                  onClick={openFilePicker}
-                  className="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50"
-                >
-                  Attach file
-                </button>
-              </div>
-              <div className="ml-auto flex items-center gap-3">
-                <SignedOut>
-                  {freeUsed ? (
-                    <div className="text-sm text-amber-700">Sign in to continue after your first free question.</div>
-                  ) : (
-                    <div className="text-sm text-emerald-700">Your first question is free.</div>
-                  )}
-                </SignedOut>
-                <SignedIn>
-                  <div className="text-sm text-slate-600">Subscribers get unlimited conversations.</div>
-                </SignedIn>
-                <button
-                  onClick={onSend}
-                  disabled={sending || !canSend()}
-                  className="px-4 py-2 rounded-2xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
-                >
-                  Send
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
+                      className="hidden"
+                      onChange={onFileChange}
+                      disabled={locked}
+                    />
+                    <button
+                      onClick={openFilePicker}
+                      disabled={locked}
+                      className="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Attach file
+                    </button>
+                  </div>
+                  <div className="ml-auto flex items-center gap-3">
+                    <SignedOut>
+                      {freeUsed ? (
+                        <div className="text-sm text-amber-700">Subscribe to continue.</div>
+                      ) : (
+                        <div className="text-sm text-emerald-700">Your first question is free.</div>
+                      )}
+                    </SignedOut>
+                    <SignedIn>
+                      <div className="text-sm text-slate-600">Subscribers get unlimited conversations.</div>
+                    </SignedIn>
+                    <button
+                      onClick={onSend}
+                      disabled={sending || !canSend()}
+                      className="px-4 py-2 rounded-2xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+                {error && <p className="text-red-600 text-sm">{error}</p>}
               </div>
             </div>
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+
+            {locked && (
+              <div className="absolute inset-0 rounded-xl border border-slate-200 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                <h3 className="text-base font-semibold text-slate-900 mb-2">You’ve used your free question</h3>
+                <p className="text-sm text-slate-600 mb-4 max-w-md">
+                  Subscribe to continue this conversation and get unlimited chats with your finance mentor.
+                </p>
+                <a
+                  href="/subscribe"
+                  className="inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Subscribe for unlimited chats
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
