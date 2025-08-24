@@ -1,72 +1,81 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { Inter } from "next/font/google";
-import Script from "next/script";
-import SignInCta from "../components/SignInCta";
-
-const inter = Inter({ subsets: ["latin"] });
-
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://financecareermentor.com";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
-  title: "Finance Career Mentor — Specific, senior-level advice on demand",
-  description: "Chat with an AI mentor tuned for finance careers. Resume reviews, offer decisions, raise planning, interview prep.",
-  openGraph: {
-    title: "Finance Career Mentor — Specific, senior-level advice on demand",
-    description: "Chat with an AI mentor tuned for finance careers. Resume reviews, offer decisions, raise planning, interview prep.",
-    url: "/",
-    siteName: "Finance Career Mentor",
-    images: [{ url: "/og.png", width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Finance Career Mentor — Specific, senior-level advice on demand",
-    description: "Chat with an AI mentor tuned for finance careers. Resume reviews, offer decisions, raise planning, interview prep.",
-    images: ["/og.png"],
-  },
+  title: "Finance Career Mentor",
+  description:
+    "Chat with a seasoned finance mentor—anytime. Get actionable guidance from an AI mentor trained on 50,000 finance-career insights curated from industry-leading executives.",
 };
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-RCX9Y9PNK9";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>
+        <head>
           {/* Google Analytics */}
-          <Script src="https://www.googletagmanager.com/gtag/js?id=G-RCX9Y9PNK9" strategy="afterInteractive" />
-          <Script id="ga-init" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              window.gtag = gtag;
-              gtag('js', new Date());
-              gtag('config', 'G-RCX9Y9PNK9', { send_page_view: true });
-            `}
-          </Script>
+          {GA_ID ? (
+            <>
+              <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+              <script
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    gtag('js', new Date());
+                    gtag('config', '${GA_ID}', { anonymize_ip: true });
+                  `,
+                }}
+              />
+            </>
+          ) : null}
+        </head>
+        <body>
+          <header className="border-b bg-white">
+            <div className="mx-auto w-full max-w-6xl px-4 h-16 flex items-center justify-between gap-4">
+              <Link href="/" className="font-semibold text-slate-900">
+                FinanceCareerMentor
+              </Link>
 
-          <nav className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-slate-200">
-            <div className="container flex items-center justify-between h-14">
-              <div className="flex items-center gap-4">
-                <Link href="/" className="font-semibold tracking-tight text-slate-900">Finance Career Mentor</Link>
-                {/* Removed Chat and Subscribe links per request */}
-              </div>
+              <nav className="hidden md:flex items-center gap-6">
+                <Link href="/subscribe" className="text-slate-700 hover:text-slate-900">
+                  Pricing
+                </Link>
+                <Link href="/account" className="text-slate-700 hover:text-slate-900">
+                  Account
+                </Link>
+                <Link href="/chat" className="text-slate-700 hover:text-slate-900">
+                  Chat
+                </Link>
+              </nav>
+
               <div className="flex items-center gap-3">
                 <SignedOut>
-                  <SignInCta />
+                  <SignInButton mode="modal">
+                    <button className="px-3 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700">
+                      Sign in
+                    </button>
+                  </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton appearance={{ elements: { userButtonTrigger: "rounded-full border border-slate-200" } }} />
+                  <UserButton
+                    appearance={{
+                      elements: { avatarBox: "w-8 h-8" },
+                    }}
+                  />
                 </SignedIn>
               </div>
             </div>
-          </nav>
-          {children}
-          <footer className="py-10 text-center text-sm text-slate-600">
-            <div className="container">
-              <p>© {new Date().getFullYear()} Finance Career Mentor.</p>
-              <p className="mt-2">Not legal or financial advice. Avoid sharing confidential or proprietary information.</p>
+          </header>
+
+          <main>{children}</main>
+
+          <footer className="border-t mt-12">
+            <div className="mx-auto w-full max-w-6xl px-4 py-6 text-xs text-slate-500">
+              Not legal or financial advice. Avoid sharing confidential or proprietary information.
             </div>
           </footer>
         </body>
