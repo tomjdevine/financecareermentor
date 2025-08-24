@@ -21,6 +21,10 @@ const PRESETS = [
   "Other",
 ];
 
+const FREE_LIMIT = 5; // <-- adjust this to change the free allowance
+const FREE_COUNT_KEY = "free_count";
+const FREE_USED_LEGACY_KEY = "free_used"; // migrate from old boolean
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hi — I’m your finance career mentor. What’s on your mind?" }
@@ -28,10 +32,12 @@ export default function ChatPage() {
   const [input, setInput] = useState<string>("");
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [freeUsed, setFreeUsed] = useState<boolean>(false);
-  const [locked, setLocked] = useState<boolean>(false); // paywall state after free message is used
+
+  const [freeCount, setFreeCount] = useState<number>(0); // how many free Qs used
+  const [locked, setLocked] = useState<boolean>(false); // paywall state after limit is reached
   const [rechecking, setRechecking] = useState<boolean>(false);
   const [recheckMsg, setRecheckMsg] = useState<string>("");
+
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,9 +48,25 @@ export default function ChatPage() {
   const [otherMode, setOtherMode] = useState<boolean>(false);
   const [otherValue, setOtherValue] = useState<string>("");
 
+  // Load free count (with migration from old boolean key)
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setFreeUsed(localStorage.getItem("free_used") === "1");
+    if (typeof window === "undefined") return;
+    try {
+      let count = parseInt(localStorage.getItem(FREE_COUNT_KEY) || "0", 10);
+      if (Number.isNaN(count) || count < 0) count = 0;
+
+      const legacy = localStorage.getItem(FREE_USED_LEGACY_KEY);
+      if (legacy === "1" && count === 0) {
+        // If the old boolean exists and no count was set yet, assume they used 1
+        count = 1;
+        localStorage.setItem(FREE_COUNT_KEY, String(count));
+        localStorage.removeItem(FREE_USED_LEGACY_KEY);
+      }
+
+      setFreeCount(count);
+      if (count >= FREE_LIMIT) setLocked(true);
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -64,10 +86,11 @@ export default function ChatPage() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
+  const freeLeft = Math.max(0, FREE_LIMIT - freeCount);
+
   const canSend = () => {
     if (locked) return false;
-    if (!freeUsed) return true;
-    // After first question, we check sub in onSend; controls remain enabled until locked
+    // Controls remain enabled until they exceed limit; we gate in onSend and then lock
     return true;
   };
 
@@ -76,26 +99,31 @@ export default function ChatPage() {
     setError(null);
     setRecheckMsg("");
 
-    if (!freeUsed) {
-      localStorage.setItem("free_used", "1");
-      setFreeUsed(true);
-    } else {
-      // After first free message, enforce subscription without redirect:
-      if (!isSignedIn) {
-        setLocked(true);
-        return;
+    if (freeCount >= FREE_LIMIT) {
+      setLocked(true);
+      return;
+    }
+
+    const nextCount = freeCount + 1;
+    setFreeCount(nextCount);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(FREE_COUNT_KEY, String(nextCount));
       }
+    } catch {}
+
+    // If they reached the limit exactly now, and they are NOT subscribed, pre-lock
+    if (nextCount >= FREE_LIMIT) {
       try {
-        const sub = await fetch("/api/subscription/check", { headers: { "Content-Type": "application/json" } });
-        const data = await sub.json();
-        if (!data.active) {
+        if (isSignedIn) {
+          const sub = await fetch("/api/subscription/check", { headers: { "Content-Type": "application/json" } });
+          const data = await sub.json();
+          if (!data.active) setLocked(true);
+        } else {
           setLocked(true);
-          return;
         }
       } catch {
-        // If we cannot verify, be safe and lock
-        setLocked(true);
-        return;
+        // ignore; we'll enforce on next attempt
       }
     }
 
@@ -343,8 +371,13 @@ export default function ChatPage() {
 
         {/* Chat area */}
         <div className="card p-4 md:p-6">
-          <div className="mb-3 text-sm text-slate-600">
-            Chatting with: <span className="font-medium">{mentorProfile}</span>
+          <div className="mb-3 text-sm text-slate-600 flex items-center justify-between">
+            <div>
+              Chatting with: <span className="font-medium">{mentorProfile}</span>
+            </div>
+            <div className="text-xs text-slate-500">
+              Free questions left: <span className="font-semibold">{freeLeft}</span> / {FREE_LIMIT}
+            </div>
           </div>
 
           <div ref={listRef} className="h-[60vh] overflow-y-auto pr-1 space-y-4">
@@ -403,10 +436,10 @@ export default function ChatPage() {
                   </div>
                   <div className="ml-auto flex items-center gap-3">
                     <SignedOut>
-                      {freeUsed ? (
-                        <div className="text-sm text-amber-700">Subscribe to continue.</div>
+                      {freeCount > 0 ? (
+                        <div className="text-sm text-amber-700">Subscribe to continue after your free questions.</div>
                       ) : (
-                        <div className="text-sm text-emerald-700">Your first question is free.</div>
+                        <div className="text-sm text-emerald-700">You have {FREE_LIMIT} free questions.</div>
                       )}
                     </SignedOut>
                     <SignedIn>
@@ -427,9 +460,9 @@ export default function ChatPage() {
 
             {locked && (
               <div className="absolute inset-0 rounded-xl border border-slate-200 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
-                <h3 className="text-base font-semibold text-slate-900 mb-2">You’ve used your free question</h3>
+                <h3 className="text-base font-semibold text-slate-900 mb-2">You’ve used your free questions</h3>
                 <p className="text-sm text-slate-600 mb-4 max-w-md">
-                  Subscribe to continue this conversation and get unlimited chats with your finance mentor.
+                  You’ve reached the limit of {FREE_LIMIT} free questions. Subscribe to continue this conversation and get unlimited chats with your finance mentor.
                 </p>
                 <div className="flex items-center gap-3">
                   <a
