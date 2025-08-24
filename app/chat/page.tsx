@@ -30,6 +30,8 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [freeUsed, setFreeUsed] = useState<boolean>(false);
   const [locked, setLocked] = useState<boolean>(false); // paywall state after free message is used
+  const [rechecking, setRechecking] = useState<boolean>(false);
+  const [recheckMsg, setRecheckMsg] = useState<string>("");
   const { isSignedIn } = useUser();
   const listRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -65,21 +67,20 @@ export default function ChatPage() {
   const canSend = () => {
     if (locked) return false;
     if (!freeUsed) return true;
-    // After first question, we only allow if user is signed in and has active sub (checked on demand in onSend)
-    return true; // allow the button visually; we'll gate in onSend and then lock if needed
+    // After first question, we check sub in onSend; controls remain enabled until locked
+    return true;
   };
 
   const onSend = async () => {
     if (!input.trim() || locked) return;
     setError(null);
+    setRecheckMsg("");
 
     if (!freeUsed) {
       localStorage.setItem("free_used", "1");
       setFreeUsed(true);
     } else {
       // After first free message, enforce subscription without redirect:
-      //  - If not signed in → lock and show overlay to subscribe.
-      //  - If signed in but no active sub → lock and show overlay to subscribe.
       if (!isSignedIn) {
         setLocked(true);
         return;
@@ -260,6 +261,26 @@ export default function ChatPage() {
     }
   };
 
+  async function recheckNow() {
+    try {
+      setRechecking(true);
+      setRecheckMsg("");
+      const sub = await fetch("/api/subscription/check", { headers: { "Content-Type": "application/json" } });
+      const data = await sub.json();
+      if (data?.active) {
+        setLocked(false);
+        setRecheckMsg("You're good to go! Subscription active.");
+        setTimeout(() => setRecheckMsg(""), 3000);
+      } else {
+        setRecheckMsg("Still not active yet. If you just subscribed, wait a few seconds and try again.");
+      }
+    } catch {
+      setRecheckMsg("Couldn't verify right now. Please refresh and try again.");
+    } finally {
+      setRechecking(false);
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-[1400px] px-4 py-6">
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
@@ -410,12 +431,22 @@ export default function ChatPage() {
                 <p className="text-sm text-slate-600 mb-4 max-w-md">
                   Subscribe to continue this conversation and get unlimited chats with your finance mentor.
                 </p>
-                <a
-                  href="/subscribe"
-                  className="inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Subscribe for unlimited chats
-                </a>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="/subscribe"
+                    className="inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Subscribe for unlimited chats
+                  </a>
+                  <button
+                    onClick={recheckNow}
+                    disabled={rechecking}
+                    className="inline-flex items-center px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {rechecking ? "Rechecking…" : "Already subscribed? Recheck now"}
+                  </button>
+                </div>
+                {recheckMsg && <p className="text-xs text-slate-600 mt-3">{recheckMsg}</p>}
               </div>
             )}
           </div>
